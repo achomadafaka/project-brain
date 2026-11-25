@@ -236,3 +236,7 @@ hits always rank below keyword hits.
 python3 -m pytest                                   # offline, no Docker
 BRAIN_LIVE_TEST=1 python3 -m pytest tests/test_live.py   # real database; starts and removes containers
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
