@@ -89,8 +89,8 @@ class RestStore:
     def __init__(self, config=None, request=None, timeout: float = 3.0):
         if request is None:
             key = config.service_key()
-            if not key or not config.rest_port:
-                raise BrainMisconfigured("no service key or port for this brain; run `brain init`")
+            if not key or not (config.rest_port or config.external_url):
+                raise BrainMisconfigured("no service key or address for this brain; run `brain init`")
             request = http_request(config.url, key)
         self.config = config
         self._request = request
@@ -221,7 +221,7 @@ class RestStore:
     def set_embeddings(self, rows):
         """rows: [{"id": ..., "embedding": [floats]}], at most 64. Returns how many were written."""
         return int(self._rpc("brain_set_embeddings", {"p_rows": [
-            {"id": r["id"], "embedding": "[" + ",".join(f"{float(x):.7g}" for x in r["embedding"]) + "]"}
+            {"table": "brain_facts", "id": r["id"], "embedding": "[" + ",".join(f"{float(x):.7g}" for x in r["embedding"]) + "]"}
             for r in rows]}) or 0)
 
     def facts_by_sha(self, token, limit=20):

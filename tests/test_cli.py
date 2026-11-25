@@ -415,3 +415,33 @@ def test_rest_store_facts_by_sha_issues_exact_ref_and_commit_prefix_reads():
     refs = [p for m, p in paths if "evidence=cs." in p]
     assert len(refs) == 6 and any(FULL[:9] in p for p in refs) and all("valid_to=is.null" in p for p in refs)
     assert any("brain_entities" in p and "type=eq.commit" in p and "name_lc=like." + FULL + "%2A" in p for m, p in paths)
+
+
+def test_an_existing_database_is_used_through_its_own_address_and_key_file(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("BRAIN_URL", raising=False)
+    monkeypatch.delenv("BRAIN_SERVICE_KEY", raising=False)
+    keys = tmp_path / "elsewhere.env"
+    keys.write_text("OTHER=1\nEXISTING_SERVICE_KEY=key-from-the-existing-stack\n")
+    (tmp_path / ".brain").mkdir()
+    (tmp_path / ".brain" / "config.json").write_text(json.dumps({
+        "url": "http://127.0.0.1:9/rest/v1/", "key_file": str(keys), "key_name": "EXISTING_SERVICE_KEY",
+        "roles": {"ada": ""}, "sections": ["ops"], "episode_kinds": ["handoff_line", "team_report"],
+        "recent_kinds": ["team_report"]}))
+    from brain.config import Config
+    cfg = Config.load(tmp_path)
+    assert cfg.url == "http://127.0.0.1:9/rest/v1" and cfg.service_key() == "key-from-the-existing-stack"
+    RestStore(cfg)                                                           # starts without a port of its own
+    for cmd in (["init"], ["up"], ["down"], ["status"]):                     # never manages a stack it does not own
+        assert cli.main(cmd, root=tmp_path) == 2
+    assert "managed elsewhere" in capsys.readouterr().out
+    assert sorted(p.name for p in (tmp_path / ".brain").iterdir()) == ["config.json"]   # no compose file, no secrets
+    s = FakeStore(cfg)
+    assert cli.main(["episode", "--role", "ada", "--kind", "team_report", "weekly numbers"], store=s) == 0
+    assert cli.main(["episode", "--role", "ada", "--kind", "note", "not a kind of this database"], store=s) == 2
+    s.clock = datetime.now(timezone.utc)
+    cli.main(["episode", "--role", "ada", "--kind", "team_report", "fresh numbers"], store=s)
+    cli.main(["episode", "--role", "ada", "--kind", "handoff_line", "not a recent kind here"], store=s)
+    capsys.readouterr()
+    assert cli.main(["boot", "ada"], store=s) == 0
+    out = capsys.readouterr().out
+    assert "fresh numbers" in out and "not a recent kind here" not in out

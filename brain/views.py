@@ -206,7 +206,6 @@ def _cap(lines, budget, label, hint):
         out.append(text)
         used += len(text) + 1
     return out, used
-RECENT_KINDS = ("handoff_line", "handover", "operator_order", "report")
 LIVE_WORK = ("unverified", "verified", "verified_partial", "disputed")
 
 
@@ -242,7 +241,7 @@ def boot(store, role, repo, *, limit=BOOT_LIMIT, snapshot=None, fetch_limit=500,
                 "queued": lambda: store.queue_count(sec_ids, role) if sec_ids else 0,
                 "orders": _orders,
                 "mine": _role_facts,
-                "recent": lambda: store.episodes_since(RECENT_KINDS, since, RECENT_N)}
+                "recent": lambda: store.episodes_since(store.config.recent_kinds, since, RECENT_N)}
         with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
             futs = {k: pool.submit(f) for k, f in jobs.items()}
             got = {k: f.result() for k, f in futs.items()}

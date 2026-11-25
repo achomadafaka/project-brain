@@ -24,7 +24,7 @@ import signal
 import sys
 from pathlib import Path
 
-from brain import EPISODE_KINDS, KINDS, VERDICTS, api, views
+from brain import KINDS, VERDICTS, api, views
 from brain.config import DEFAULT, DIR, Config, NoBrain, find_root
 from brain.evidence import fetch_once
 from brain.gate import EVIDENCE_TYPES, secret_values_from_env, secret_values_from_mapping
@@ -93,7 +93,7 @@ def build_parser():
     q.add_argument("--author", help="only this author's unverified facts")
     ep = sub.add_parser("episode", help="append a provenance episode")
     ep.add_argument("--role", required=True)
-    ep.add_argument("--kind", required=True, choices=EPISODE_KINDS)
+    ep.add_argument("--kind", required=True, help="handoff_line, operator_order, report, command_output, commit, doc, ... (see config)")
     ep.add_argument("--occurred-at", help="ISO time the event happened; omit when unknown")
     ep.add_argument("body")
     h = sub.add_parser("handover", help="record a handover and print the restart note")
@@ -144,12 +144,15 @@ def _init(ns, root):
         data = dict(DEFAULT, name=root.name)
         if ns.roles:
             data["roles"] = {r.strip().lower(): "" for r in ns.roles.split(",") if r.strip()}
-    if not data.get("rest_port"):
+    if not data.get("rest_port") and not data.get("url"):
         data["rest_port"] = stack.free_port()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2) + "\n")
         print(f"wrote {DIR}/config.json (roles: {', '.join(data['roles'])})")
     config = Config(root, data)
+    if config.external_url:
+        print(EXTERNAL)
+        return 2
     for name in stack.write_files(config, data["rest_port"]):
         print(f"wrote {name}")
     if ns.no_start:
@@ -158,8 +161,14 @@ def _init(ns, root):
     return _up(config)
 
 
+EXTERNAL = "this brain uses a database managed elsewhere (\"url\" in .brain/config.json); start, stop and migrate it there"
+
+
 def _up(config):
     from brain import stack
+    if config.external_url:
+        print(EXTERNAL)
+        return 2
     try:
         stack.up(config)
         sections = RestStore(config, timeout=10).ensure_sections(config.sections)
@@ -190,7 +199,7 @@ def main(argv=None, *, store=None, root=None, fetch=None):
         return 0 if hook.install(repo, dry_run=ns.dry_run) else 2
     if ns.cmd in ("up", "down", "status"):
         from brain import stack
-        if ns.cmd == "up":
+        if ns.cmd == "up" or config.external_url:
             return _up(config)
         try:
             print(stack.status(config) if ns.cmd == "status" else (stack.down(config) or "stopped (data kept)"))
@@ -214,6 +223,8 @@ def main(argv=None, *, store=None, root=None, fetch=None):
         store = store or RestStore(config)
         secrets = (secret_values_from_env(repo / ".env") | secret_values_from_env(config.env_file)
                    | secret_values_from_mapping(os.environ))
+        if config.key_file:
+            secrets |= secret_values_from_env(Path(config.key_file).expanduser())
         if ns.cmd == "write":
             fetched = fetch_once(repo) if do_fetch else True
             d = draft_from_args(ns, config)

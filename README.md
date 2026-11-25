@@ -60,6 +60,29 @@ The data lives in a Docker volume owned by the compose project named in
 attached when the project folder is moved or renamed, as long as `.brain/`
 moves with it. Back up with `pg_dump` inside the `db` container.
 
+### Using a database that already exists
+
+A project can point at a brain database it does not manage instead of running
+its own stack. Write `.brain/config.json` by hand, without `brain init`:
+
+```json
+{
+  "url": "http://127.0.0.1:54321/rest/v1",
+  "key_file": "~/.config/my-stack/client.env",
+  "key_name": "SERVICE_KEY",
+  "roles": {"lead": "Leads the work."},
+  "sections": ["general"]
+}
+```
+
+The service key is read from `key_file` at run time and is never copied into
+the project. `brain init`, `up`, `down` and `status` refuse to run for such a
+project: the stack is started, stopped and migrated wherever it is managed.
+The database needs the tables and functions of `brain/schema.sql`. If its
+episode kinds or entity types differ from the defaults, list them under
+`episode_kinds`, `recent_kinds` (the kinds a boot shows under LAST 48 H) and
+`entity_types`.
+
 ## Roles
 
 Roles are free-form names in `.brain/config.json`:

@@ -8,13 +8,12 @@ import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
-from brain import EPISODE_KINDS, KINDS, READ_STATUSES, STATUSES, VERDICTS
+from brain import KINDS, READ_STATUSES, STATUSES, VERDICTS
 from conftest import make_config
 from brain.store import BrainRefused, VersionConflict
 
 _DAYS = {"measurement": 7, "settled": 60, "task": 3}
 _VERIFIED = ("verified", "verified_partial", "refuted")
-_EP_KINDS = EPISODE_KINDS
 _RELS = ("supports", "contradicts", "supersedes", "depends_on", "derived_from", "same_as", "part_of",
          "candidate")
 _FACT_IMMUTABLE = ("statement", "kind", "author", "recorded_at", "entity_ids", "valid_from", "polarity",
@@ -116,7 +115,7 @@ class FakeStore:
             raise BrainRefused("CHECK valid_to >= valid_from")
 
     def _check_episodes(self, row):
-        if row.get("kind") not in _EP_KINDS:
+        if row.get("kind") not in self.config.episode_kinds:
             raise BrainRefused("episode kind CHECK")
         if len(row.get("body") or "") > 1800:
             raise BrainRefused("episode part over 1800 chars")

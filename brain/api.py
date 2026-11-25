@@ -247,6 +247,8 @@ def add_episode(store, kind, body, *, author, session_id=None, source_ref=None, 
     refuses the episode."""
     if author not in store.config.authors:
         raise BrainRefused(f"author must be one of {', '.join(store.config.authors)}")
+    if kind not in store.config.episode_kinds:
+        raise BrainRefused(f"episode kind must be one of {', '.join(store.config.episode_kinds)}")
     if validate_episode_body(body, secret_values=set(secret_values)):
         raise BrainRefused("refused: the episode body contains a secret or a keyed URL (value not shown)")
     chunks = [body[i:i + PART] for i in range(0, max(len(body), 1), PART)]
