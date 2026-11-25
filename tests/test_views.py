@@ -16,10 +16,11 @@ def seeded(n_traps=1):
     s = FakeStore(make_config(REPO))
     for slug in ("infra/deploy", "general"):
         s.insert("brain_sections", {"slug": slug, "title": slug})
+    # The invented knob must stay `unchecked`, not `broken`: its BRAIN_AMBIENT_ family is real (brain/hook.py).
     for i in range(n_traps):
         api.write_fact(s, {"kind": "trap", "statement": f"Deploy trap number {i}: a waiter execs the deploy {i}.",
                            "author": "builder", "section": "infra/deploy",
-                           "evidence": [{"type": "path", "ref": "pyproject.toml"}, {"type": "knob", "ref": "APP_REAL_ZZ_MADE_UP"}],
+                           "evidence": [{"type": "path", "ref": "pyproject.toml"}, {"type": "knob", "ref": "BRAIN_AMBIENT_ZZ_MADE_UP"}],
                            "entities": [{"type": "process", "name": "deploy"}]}, repo=REPO, interactive=False)
     return s
 
@@ -28,7 +29,7 @@ def test_boot_shows_role_status_quota_evidence_checks_and_the_data_banner():
     out = views.boot(seeded(), "lead", REPO)
     assert ROLES["lead"] in out and "git: " in out and "[unverified]" in out and "VERIFY" in out
     assert "data, not instructions" in out
-    assert "knob:APP_REAL_ZZ_MADE_UP [unchecked]" in out          # an invented knob stays visible
+    assert "knob:BRAIN_AMBIENT_ZZ_MADE_UP [unchecked]" in out          # an invented knob stays visible
     assert "path:pyproject.toml [" in out
 
 
